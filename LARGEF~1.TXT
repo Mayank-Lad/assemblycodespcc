@@ -1,0 +1,103 @@
+.model small
+.stack 100h
+
+.data
+    prompt  db  'Enter a number (0 to exit): $'
+    result  db  'Factorial: $'
+    newline db  0dh, 0ah, '$'
+    big_num dd 0, 0  ; Double-word to hold a large factorial
+
+.code
+start:
+    mov ax, @data
+    mov ds, ax
+
+main_loop:
+    ; Print prompt
+    lea dx, prompt
+    mov ah, 09h
+    int 21h
+
+    ; Read input number
+    xor bx, bx
+    mov ah, 01h
+    int 21h
+    cmp al, '0'
+    je exit
+
+    ; Convert ASCII to decimal
+    sub al, '0'
+    mov bl, al
+
+    ; Calculate factorial
+    call factorial
+
+    ; Print result
+    lea dx, result
+    mov ah, 09h
+    int 21h
+
+    mov ax, word ptr [big_num + 2]  ; Move the high part of the result to ax for printing
+    call print_large_number
+
+    mov ax, word ptr [big_num]  ; Move the low part of the result to ax for printing
+    call print_large_number
+
+    ; Print newline
+    lea dx, newline
+    mov ah, 09h
+    int 21h
+
+    jmp main_loop
+
+factorial proc
+    mov cx, 1              ; Counter for multiplication
+    mov dword ptr [big_num], 1  ; Initialize big_num with 1 for the factorial calculation
+    mov dword ptr [big_num + 4], 0
+    
+fact_loop:
+    cmp cx, bx            ; Check if counter is equal to input number
+    je fact_end
+    mov ax, word ptr [big_num]
+    mov dx, word ptr [big_num + 2]
+    mul cx                ; Multiply big_num by counter
+    mov word ptr [big_num], ax
+    mov word ptr [big_num + 2], dx
+    inc cx                ; Increment counter
+    jmp fact_loop
+
+fact_end:
+    ret
+factorial endp
+
+print_large_number proc
+    push ax bx cx dx
+
+    mov bx, 10      ; BX = 10
+    xor cx, cx      ; CX = 0 (counter for digit position)
+
+print_loop:
+    xor dx, dx      ; Clear DX for division
+    div bx          ; Divide DX:AX by BX (10)
+    push dx         ; Push the remainder (digit) onto the stack
+    inc cx          ; Increment the counter
+    or ax, ax       ; Check if AX is zero
+    jnz print_loop  ; If not zero, continue looping
+
+print_digits:
+    pop dx          ; Pop the digit from the stack
+    add dl, '0'     ; Convert the digit to ASCII
+    mov ah, 02h
+    int 21h         ; Print the digit
+    loop print_digits ; Loop until all digits are printed
+
+    pop dx cx bx ax
+    ret
+print_large_number endp
+
+exit:
+    ; Exit program
+    mov ah, 4ch
+    int 21h
+
+end start
